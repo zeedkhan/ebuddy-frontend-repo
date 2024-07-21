@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -16,14 +15,21 @@ import { signUpSchema } from '@/validates';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useAppDispatch, useAppSelector } from '@/store/store';
+import { useEffect, useRef } from 'react';
+import { setError, setLoading } from '@/store/actions';
 
 
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
 
 export default function SignUp() {
-    const [createUserWithEmailAndPassword] = (useCreateUserWithEmailAndPassword(auth));
+    const [createUserWithEmailAndPassword, successSignUp, loading, error] = (useCreateUserWithEmailAndPassword(auth));
+    const user = useAppSelector((state) => state.user);
+    const dispatch = useAppDispatch();
     const router = useRouter();
+    const ref = useRef(dispatch);
+
     const form = useForm<SignUpFormData>({
         resolver: zodResolver(signUpSchema),
         defaultValues: {
@@ -32,13 +38,30 @@ export default function SignUp() {
         },
     });
 
+    useEffect(() => {
+        if (user.user || successSignUp) {
+            router.push("/");
+        }
+    }, [user, successSignUp]);
+
+    useEffect(() => {
+        if (ref.current) {
+            ref.current(setLoading(loading));
+        }
+    }, [loading]);
+
+    useEffect(() => {
+        if (error) {
+            ref.current(setError({ error: error.message }));
+        }
+    }, [error]);
+
     const handleSignUp = async (data: { email: string, password: string }) => {
         try {
             const response = await createUserWithEmailAndPassword(data.email, data.password);
             console.log("Sign up response", response)
         } catch (error) {
             console.log("Sign up error", error);
-
         }
     };
 

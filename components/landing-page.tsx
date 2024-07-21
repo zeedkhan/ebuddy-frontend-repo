@@ -1,11 +1,12 @@
 "use client";
 
+import { fetchUsers, updateUserCollection } from "@/apis/userApi";
 import { auth } from "@/app/firebase/config";
 import useCustomDispatch from "@/hooks/useCustomDispatch";
 import { setLoading } from "@/store/actions";
 import { RootState } from "@/store/store";
 import { Box, Button } from "@mui/material";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 
@@ -35,52 +36,43 @@ const LandingPage: React.FC = () => {
 
     const handleSetError = (err: unknown) => {
         if (err instanceof AxiosError) {
+            if (err.code === "ERR_NETWORK" || err.message === "Network Error") {
+                processStates.forceError({ error: "Network error" });
+                return;
+            };
             processStates.forceError(err.response?.data);
         } else {
             processStates.forceError({ error: "An error occurred" });
         }
     }
 
-
-    const fetchUsers = async () => {
+    const fetchData = async () => {
         processStates.clearAndLoad();
         try {
-            const request = await axios.get("http://localhost:8000/fetch-user-data", {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            setUsers(request.data);
-
+            const response = await fetchUsers(token || "");
+            setUsers(response);
             processStates.forceSuccess({ success: "Fetched data" });
         } catch (err) {
             handleSetError(err);
         } finally {
             setLoading(false);
         }
-    };
+    }
 
-
-    const updateUserCollection = async () => {
+    const updateUser = async () => {
         processStates.clearAndLoad();
         const payload = {
             uid: user.user?.uid || "",
         }
         try {
-            const request = await axios.put("http://localhost:8000/update-user-data", payload, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-            });
-            setUpdatedUser(request.data);
-            processStates.forceSuccess({ success: "User updated" });
+            const response = await updateUserCollection(token || "", payload.uid);
+            setUpdatedUser(response);
         } catch (err) {
             handleSetError(err);
         } finally {
             setLoading(false);
         }
-    };
+    }
 
     return (
         <Box
@@ -106,7 +98,7 @@ const LandingPage: React.FC = () => {
                         sx={{ margin: 2 }}
                         color="inherit"
                         variant="contained"
-                        onClick={fetchUsers}
+                        onClick={fetchData}
                     >
                         Fetch user
                     </Button>
@@ -116,7 +108,7 @@ const LandingPage: React.FC = () => {
                         sx={{ margin: 2 }}
                         variant="contained"
                         color="inherit"
-                        onClick={updateUserCollection}
+                        onClick={updateUser}
                     >
                         Update Collection
                     </Button>

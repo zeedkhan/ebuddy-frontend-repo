@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -19,14 +18,22 @@ import { loginSchema } from '@/validates';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/store';
+import { setError, setLoading } from '@/store/actions';
 
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
 
 export default function Login() {
-    const [signIn] = (useSignInWithEmailAndPassword(auth));
+    const [signIn, successSignIn, loading, error] = (useSignInWithEmailAndPassword(auth));
+    const user = useAppSelector((state) => state.user);
+
     const router = useRouter();
+    const dispatch = useAppDispatch();
+
+    const ref = useRef(dispatch);
 
     const form = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
@@ -36,16 +43,28 @@ export default function Login() {
         },
     });
 
-    const handleLogin = async (data: { email: string, password: string }) => {
-        try {
-            const response = await signIn(data.email, data.password);
-            console.log("Sign In success", response)
-
+    useEffect(() => {
+        if (user.user || successSignIn) {
             router.push("/");
-        } catch (error) {
-            console.log("Sign in error", error);
-
         }
+    }, [user, successSignIn])
+
+    useEffect(() => {
+        if (ref.current) {
+            ref.current(setLoading(loading));
+        }
+    }, [loading]);
+
+    useEffect(() => {
+        if (error) {
+            ref.current(setError({ error: error.message }));
+        }
+    }, [error]);
+
+    const handleLogin = async (data: { email: string, password: string }) => {
+        await signIn(data.email, data.password).catch((error) => {
+            console.log("Sign in error", error);
+        });
     };
 
     return (
